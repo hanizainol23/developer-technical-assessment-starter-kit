@@ -30,39 +30,49 @@ export class ListingsService {
     // Sanitize and normalize inputs
     const searchKeyword = `%${keyword.trim()}%`.toLowerCase();
     const searchLocation = `%${location.trim()}%`.toLowerCase();
+    const hasKeyword = keyword.trim().length > 0;
+    const hasLocation = location.trim().length > 0;
 
+    let paramIndex = 1;
+    const queryParams: any[] = [];
+    
     // Build WHERE clause conditions based on provided filters
-    const keywordCondition = keyword.trim() ? 
-      "(LOWER(name) LIKE $1 OR LOWER(details) LIKE $1)" : 
-      "TRUE";
-    const locationCondition = location.trim() ? 
-      "(LOWER(location_city) LIKE $2 OR LOWER(location_neighborhood) LIKE $2)" : 
-      "TRUE";
+    let keywordCondition = 'TRUE';
+    if (hasKeyword) {
+      keywordCondition = `(LOWER(name) LIKE $${paramIndex} OR LOWER(details) LIKE $${paramIndex})`;
+      queryParams.push(searchKeyword);
+      paramIndex++;
+    }
+    
+    let locationCondition = 'TRUE';
+    if (hasLocation) {
+      locationCondition = `(LOWER(location_city) LIKE $${paramIndex} OR LOWER(location_neighborhood) LIKE $${paramIndex})`;
+      queryParams.push(searchLocation);
+      paramIndex++;
+    }
+
+    const limitParamIndex = paramIndex;
+    queryParams.push(limit);
 
     // Build the SQL with dynamic conditions
     const whereClause = `WHERE ${keywordCondition} AND ${locationCondition}`;
     
     // Optimized query using UNION with indexed searches
     const sql = `
-      SELECT id, 'property' as type, name, price, image_urls, location_city, location_neighborhood, sq_ft_or_area, created_at
+      SELECT id, 'property' as type, name, price, image_urls, location_city, location_neighborhood, sq_ft_or_area
       FROM properties
       ${whereClause}
       UNION ALL
-      SELECT id, 'project' as type, name, NULL::numeric as price, image_urls, location_city, location_neighborhood, sq_ft_or_area, created_at
+      SELECT id, 'project' as type, name, NULL::numeric as price, image_urls, location_city, location_neighborhood, sq_ft_or_area
       FROM projects
       ${whereClause}
       UNION ALL
-      SELECT id, 'land' as type, name, price, image_urls, location_city, location_neighborhood, sq_ft_or_area, created_at
+      SELECT id, 'land' as type, name, price, image_urls, location_city, location_neighborhood, sq_ft_or_area
       FROM lands
       ${whereClause}
-      ORDER BY created_at DESC
-      LIMIT $1
+      ORDER BY id DESC
+      LIMIT $${limitParamIndex}
     `;
-
-    // Prepare query parameters
-    const queryParams: any[] = [limit];
-    if (keyword.trim()) queryParams.push(searchKeyword);
-    if (location.trim()) queryParams.push(searchLocation);
 
     const res = await this.db.query(sql, queryParams);
     return res.rows;
