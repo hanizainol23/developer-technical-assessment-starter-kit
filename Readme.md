@@ -101,3 +101,36 @@ This file should includes:
 2. Indexes
 3. Sample seed data (projects, lands, properties, users, contacts.. etc) 
 
+## 5. Run / Start (devcontainer)
+
+1. Open the repo in VS Code and select `Dev Containers: Reopen in Container`.
+2. From inside the devcontainer shell, apply the DB schema:
+
+```bash
+psql -h db -p 5432 -U postgres -d postgres -f /workspace/Projects/database/script.sql
+```
+
+3. Start the backend (if present):
+
+```bash
+cd Projects/backend
+npm install
+npm run start:dev
+```
+
+4. Start the frontend (if present):
+
+```bash
+cd Projects/frontend
+npm install
+npm run start
+```
+
+## Security defaults (backend guidance)
+
+- Use `helmet` to set secure HTTP headers.
+- Enable CORS with an explicit origin whitelist; do not use a permissive wildcard in production.
+- Use input validation (NestJS `ValidationPipe` or `express-validator`) and enable whitelist/forbidNonWhitelisted options when possible.
+- Add rate limiting middleware (e.g., `express-rate-limit`) to public endpoints like contact forms and auth.
+- Run with `NODE_ENV=production` in production and keep secrets in environment variables.
+
